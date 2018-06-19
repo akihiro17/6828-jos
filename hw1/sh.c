@@ -62,33 +62,58 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       _exit(0);
-    fprintf(stderr, "exec not implemented\n");
     execv(ecmd->argv[0], ecmd->argv);
     if(errno != 0) {
       perror(strerror(errno));
     }
-    break;
-
+    exit(EXIT_FAILURE);
   case '>':
   case '<':
     rcmd = (struct redircmd*)cmd;
-    int fd = open(rcmd->file, rcmd->flags, 0644);
+    int fd = 0;
+    if (rcmd->type == '>') {
+      fd = open(rcmd->file, rcmd->flags, S_IRWXU);
+    } else {
+      fd = open(rcmd->file, rcmd->flags);
+    }
     if (fd < 0) {
       perror(rcmd->file);
     }
     close(rcmd->fd);
     dup2(fd, rcmd->fd);
-    // close(fd);
+    close(fd);
 
     runcmd(rcmd->cmd);
-    close(fd);
-    break;
+    exit(EXIT_FAILURE);
 
   case '|':
     pcmd = (struct pipecmd*)cmd;
-    fprintf(stderr, "pipe not implemented\n");
     // Your code here ...
-    break;
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        exit(EXIT_FAILURE);
+    }
+
+    if (fork1() == 0) {
+        close(pipefd[0]);
+
+        close(STDOUT_FILENO);
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[1]);
+
+        runcmd(pcmd->left);
+    } else {
+        close(pipefd[1]);
+
+        close(STDIN_FILENO);
+        dup2(pipefd[0], STDIN_FILENO);
+        close(pipefd[0]);
+
+        runcmd(pcmd->right);
+    }
+
+    exit(EXIT_SUCCESS);
   }
   _exit(0);
 }
