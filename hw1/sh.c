@@ -103,7 +103,8 @@ runcmd(struct cmd *cmd)
         close(pipefd[1]);
 
         runcmd(pcmd->left);
-    } else {
+    }
+    if (fork1() == 0) {
         close(pipefd[1]);
 
         close(STDIN_FILENO);
@@ -113,6 +114,10 @@ runcmd(struct cmd *cmd)
         runcmd(pcmd->right);
     }
 
+    close(pipefd[0]);
+    close(pipefd[1]);
+    wait(&r);
+    wait(&r);
     exit(EXIT_SUCCESS);
   }
   _exit(0);
