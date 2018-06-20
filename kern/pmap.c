@@ -97,6 +97,16 @@ boot_alloc(uint32_t n)
 		nextfree = ROUNDUP((char *) end, PGSIZE);
 	}
 
+        cprintf("boot_alloc memory at %x\n", nextfree);
+	cprintf("Next memory at %x\n", ROUNDUP((char *) (nextfree+n), PGSIZE));
+        if ( n > 0 ) {
+          char *next = nextfree;
+          nextfree = ROUNDUP((char *) (nextfree + n), PGSIZE);
+          return next;
+        } else {
+          return nextfree;
+        }
+
 	// Allocate a chunk large enough to hold 'n' bytes, then update
 	// nextfree.  Make sure nextfree is kept aligned
 	// to a multiple of PGSIZE.
