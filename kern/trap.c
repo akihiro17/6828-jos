@@ -184,6 +184,9 @@ trap_dispatch(struct Trapframe *tf)
 	// LAB 3: Your code here.
 
 	if (tf->tf_trapno == T_PGFLT) {
+                if ((tf->tf_cs & 0x03) == 0) {
+			panic("page fault in kernel mode");
+                }
 		page_fault_handler(tf);
 		return;
 	}
