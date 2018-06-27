@@ -59,6 +59,22 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+        uint32_t* ebp = (uint32_t *) read_ebp();
+        struct Eipdebuginfo info;
+        cprintf("Stack backtrace:\n");
+        while(ebp != 0) {
+          uint32_t eip = (uint32_t ) *(ebp + 1);
+          debuginfo_eip((uintptr_t) eip, &info);
+          cprintf("ebp %x  eip %x  args", ebp, eip);
+          cprintf(" %08x", *(ebp + 2));
+          cprintf(" %08x", *(ebp + 3));
+          cprintf(" %08x", *(ebp + 4));
+          cprintf(" %08x", *(ebp + 5));
+          cprintf(" %08x\n", *(ebp + 6));
+          cprintf(" %s:%d: %.*s+%d\n", info.eip_file, info.eip_line, info.eip_fn_namelen, info.eip_fn_name, eip - info.eip_fn_addr);
+          ebp = (uint32_t *) *ebp;
+        }
+
 	return 0;
 }
 
@@ -115,8 +131,9 @@ monitor(struct Trapframe *tf)
 
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
-
-	if (tf != NULL)
+        cprintf("%d decimal is %o octal!\n", 6828, 6828);
+	
+        if (tf != NULL)
 		print_trapframe(tf);
 
 	while (1) {
