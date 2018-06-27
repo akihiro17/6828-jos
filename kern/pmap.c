@@ -626,7 +626,7 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Your code here:
 	size_t roundup_size = ROUNDUP(size, PGSIZE);
 	boot_map_region(kern_pgdir, base, roundup_size, pa, PTE_W|PTE_PCD|PTE_PWT);
-	if ((MMIOBASE + roundup_size) > MMIOLIM) {
+	if ((base + roundup_size) > MMIOLIM) {
 		panic("MMIOLIM overflow");
 	}
 

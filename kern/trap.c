@@ -143,22 +143,22 @@ trap_init_percpu(void)
 	// user space on that CPU.
 	//
 	// LAB 4: Your code here:
-	struct Taskstate current_ts = thiscpu->cpu_ts;
+	int cid = thiscpu->cpu_id;
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
-	current_ts.ts_esp0 = KSTACKTOP - thiscpu->cpu_id * (KSTKSIZE + KSTKGAP);
-	current_ts.ts_ss0 = GD_KD;
-	current_ts.ts_iomb = sizeof(struct Taskstate);
+	thiscpu->cpu_ts.ts_esp0 = KSTACKTOP - cid * (KSTKSIZE + KSTKGAP);
+	thiscpu->cpu_ts.ts_ss0 = GD_KD;
+	thiscpu->cpu_ts.ts_iomb = sizeof(struct Taskstate);
 
 	// Initialize the TSS slot of the gdt.
-	gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id] = SEG16(STS_T32A, (uint32_t) (&current_ts),
+	gdt[(GD_TSS0 >> 3) + cid] = SEG16(STS_T32A, (uint32_t) (&thiscpu->cpu_ts),
 					sizeof(struct Taskstate) - 1, 0);
-	gdt[(GD_TSS0 >> 3) + thiscpu->cpu_id].sd_s = 0;
+	gdt[(GD_TSS0 >> 3) + cid].sd_s = 0;
 
 	// Load the TSS selector (like other segment selectors, the
 	// bottom three bits are special; we leave them 0)
-	ltr(GD_TSS0 + thiscpu->cpu_id * sizeof(struct Segdesc));
+	ltr(GD_TSS0 + cid * 8);
 
 	// Load the IDT
 	lidt(&idt_pd);
@@ -228,7 +228,8 @@ trap_dispatch(struct Trapframe *tf)
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
 	if (tf->tf_trapno == T_PGFLT) {
-                if ((tf->tf_cs & 0x01) == 0) {
+                if ((tf->tf_cs & 0x03) == 0) {
+			print_trapframe(tf);
 			panic("page fault in kernel mode");
                 }
 		page_fault_handler(tf);
@@ -259,7 +260,6 @@ trap_dispatch(struct Trapframe *tf)
 void
 trap(struct Trapframe *tf)
 {
-	cprintf("trap\n");
 	// The environment may have set DF and some versions
 	// of GCC rely on DF being clear
 	asm volatile("cld" ::: "cc");
@@ -283,7 +283,6 @@ trap(struct Trapframe *tf)
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
 		// LAB 4: Your code here.
-		cprintf("user mode trap\n");
 		lock_kernel();
 		assert(curenv);
 
