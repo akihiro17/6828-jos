@@ -337,7 +337,7 @@ page_init(void)
                   pages[i].pp_ref = 1;
                   continue;
                 }
-                // 3)????
+                // 3) .text, .rodata, .stab ~, .bss, ~ boot_alloc(kern_pgdir), boot_alloc(pages), boot_alloc(envs)
                 if (i >= npages_basemem + num_pages_io_hole && i < npages_basemem + num_pages_io_hole + number_of_kernel_pages) {
                   pages[i].pp_ref = 1;
                   continue;
