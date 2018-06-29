@@ -142,7 +142,13 @@ static int
 sys_env_set_pgfault_upcall(envid_t envid, void *func)
 {
 	// LAB 4: Your code here.
-	panic("sys_env_set_pgfault_upcall not implemented");
+	struct Env *e;
+	int ret = envid2env(envid, &e, 1);
+	if (ret < 0) {
+		return ret;
+	}
+	e->env_pgfault_upcall = func;
+	return 0;
 }
 
 // Allocate a page of memory and map it at 'va' with permission
@@ -238,13 +244,12 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	if (ret < 0) {
 		return ret;
 	}
-	if ((int32_t)srcva >= UTOP || (((int32_t)srcva % PGSIZE) != 0)) {
+	if ((uint32_t)srcva >= UTOP || (((uint32_t)srcva % PGSIZE) != 0)) {
 		return -E_INVAL;
 	}
-	if ((int32_t)dstva >= UTOP || (((int32_t)dstva % PGSIZE) != 0)) {
+	if ((uint32_t)dstva >= UTOP || (((uint32_t)dstva % PGSIZE) != 0)) {
 		return -E_INVAL;
 	}
-
 	pte_t *srcpte;
 	struct PageInfo *p = page_lookup(srcenv->env_pgdir, srcva, &srcpte);
 	if (srcpte == NULL) {
@@ -288,7 +293,7 @@ sys_page_unmap(envid_t envid, void *va)
 	if (ret < 0) {
 		return ret;
 	}
-	if ((int32_t)va >= UTOP || (((int32_t)va % PGSIZE) != 0)) {
+	if ((uint32_t)va >= UTOP || (((uint32_t)va % PGSIZE) != 0)) {
 		return -E_INVAL;
 	}
 	page_remove(e->env_pgdir, va);
@@ -390,6 +395,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_page_unmap((envid_t)a1, (void *)a2);
 	case SYS_env_set_status:
 		return sys_env_set_status((envid_t)a1, (int)a2);
+	case SYS_env_set_pgfault_upcall:
+		return sys_env_set_pgfault_upcall((envid_t)a1, (void *)a2);
 	default:
 		return -E_INVAL;
 	}

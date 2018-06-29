@@ -228,10 +228,6 @@ trap_dispatch(struct Trapframe *tf)
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
 	if (tf->tf_trapno == T_PGFLT) {
-                if ((tf->tf_cs & 0x03) == 0) {
-			print_trapframe(tf);
-			panic("page fault in kernel mode");
-                }
 		page_fault_handler(tf);
 		return;
 	}
@@ -241,7 +237,6 @@ trap_dispatch(struct Trapframe *tf)
 		return;
 	}
 
-	print_trapframe(tf);
 	if (tf->tf_trapno == T_SYSCALL) {
 		tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
 		return;
@@ -329,6 +324,10 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+	if ((tf->tf_cs & 0x03) == 0) {
+		print_trapframe(tf);
+		panic("page fault in kernel mode");
+	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.
@@ -363,6 +362,29 @@ page_fault_handler(struct Trapframe *tf)
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
 	// LAB 4: Your code here.
+	if (curenv->env_pgfault_upcall != NULL) {
+		uintptr_t uxstacktop = 0;
+		if (tf->tf_esp <= UXSTACKTOP - 1 && tf->tf_esp >= UXSTACKTOP - PGSIZE) {
+			uxstacktop = tf->tf_esp - sizeof(struct UTrapframe) - 4;
+		} else {
+			uxstacktop = UXSTACKTOP - sizeof(struct UTrapframe);
+		}
+
+		user_mem_assert(curenv, (void *)uxstacktop, 1, PTE_W);
+
+		struct UTrapframe *utf = (struct UTrapframe *)uxstacktop;
+		utf->utf_fault_va = fault_va;
+		utf->utf_err = tf->tf_err;
+		utf->utf_regs = tf->tf_regs;
+		utf->utf_eip = tf->tf_eip;
+		utf->utf_eflags = tf->tf_eflags;
+		utf->utf_esp = tf->tf_esp;
+
+		curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+		curenv->env_tf.tf_esp = uxstacktop;
+
+		env_run(curenv);
+	}
 
 	// Destroy the environment that caused the fault.
 	cprintf("[%08x] user fault va %08x ip %08x\n",

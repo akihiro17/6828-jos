@@ -661,7 +661,6 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
         uint32_t begin = (uint32_t)ROUNDDOWN(va, PGSIZE);
         uint32_t end = (uint32_t)ROUNDUP(va+len, PGSIZE);
         while (begin < end) {
-		cprintf("user_mem_check va: %x, begin: %x, len: %x\n", va, begin, len);
 		if (begin > ULIM) {
 			user_mem_check_addr = begin<(uint32_t)va ? (uint32_t)va : begin;
 			return -E_FAULT;
