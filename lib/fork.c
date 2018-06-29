@@ -37,10 +37,20 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
-	sys_page_alloc(0, PFTEMP, PTE_P | PTE_W | PTE_U);
+	// ? Don't use thisenv->env_id
+	r = sys_page_alloc(0, PFTEMP, PTE_P | PTE_W | PTE_U);
+	if (r < 0) {
+		panic("sys_page_alloc failed");
+	}
 	memcpy(PFTEMP, ROUNDDOWN(addr, PGSIZE), PGSIZE);
-	sys_page_map(0, PFTEMP, 0, ROUNDDOWN(addr, PGSIZE), PTE_P | PTE_W | PTE_U);
-	sys_page_unmap(0, PFTEMP);
+	r = sys_page_map(0, PFTEMP, 0, ROUNDDOWN(addr, PGSIZE), PTE_P | PTE_W | PTE_U);	
+	if (r < 0) {
+		panic("sys_page_map failed\n");
+	}
+	r = sys_page_unmap(0, PFTEMP);
+	if (r < 0) {
+		panic("sys_page_unmap failed\n");
+	}
 }
 
 //
@@ -61,10 +71,19 @@ duppage(envid_t envid, unsigned pn)
 	// LAB 4: Your code here.
 	void *va = (void *)(pn*PGSIZE);
 	if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) {
-		sys_page_map(0, va, envid, va, PTE_COW | PTE_P | PTE_U);
-		sys_page_map(0, va, 0, va, PTE_COW | PTE_P | PTE_U);
+		r = sys_page_map(0, va, envid, va, PTE_COW | PTE_P | PTE_U);
+		if (r < 0) {
+			panic("sys_page_map failed\n");
+		}
+		r = sys_page_map(0, va, 0, va, PTE_COW | PTE_P | PTE_U);
+		if (r < 0) {
+			panic("sys_page_map failed\n");
+		}
 	} else {
-		sys_page_map(0, va, envid, va, PTE_U | PTE_P);
+		r = sys_page_map(0, va, envid, va, PTE_U | PTE_P);
+		if (r < 0) {
+			panic("sys_page_map failed\n");
+		}
 	}
 
 	return 0;
@@ -90,9 +109,7 @@ envid_t
 fork(void)
 {
 	set_pgfault_handler(pgfault);
-
 	// LAB 4: Your code here.
-	extern unsigned char end[];
 	envid_t env_id = sys_exofork();
 	// fix "thisenv" in the child process.
 	if (env_id == 0) {
