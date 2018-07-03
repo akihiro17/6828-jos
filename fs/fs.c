@@ -62,7 +62,13 @@ alloc_block(void)
 	// super->s_nblocks blocks in the disk altogether.
 
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
+	for (uint32_t i = 0; i < super->s_nblocks; i++) {
+		if (bitmap[i / 32] & (1 << (i % 32))) {
+			bitmap[i / 32] &= (0 << (i % 32));
+			flush_block(diskaddr(i));
+			return i;
+		}
+	}
 	return -E_NO_DISK;
 }
 
@@ -112,7 +118,7 @@ fs_init(void)
 	// Set "bitmap" to the beginning of the first bitmap block.
 	bitmap = diskaddr(2);
 	check_bitmap();
-	
+
 }
 
 // Find the disk block number slot for the 'filebno'th block in file 'f'.
@@ -135,7 +141,28 @@ static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
        // LAB 5: Your code here.
-       panic("file_block_walk not implemented");
+       if (filebno < NDIRECT) {
+	       if (ppdiskbno) {
+		       *ppdiskbno = &f->f_direct[filebno];
+	       }
+	       return 0;
+       } else {
+	       if (f->f_indirect == 0 && !alloc) {
+		       return -E_NOT_FOUND;
+	       } else if (f->f_indirect == 0) {
+		       int blockno = alloc_block();
+		       if (blockno < 0) return -E_NO_DISK;
+		       f->f_indirect = blockno;
+		       flush_block(diskaddr(blockno));
+	       }
+
+	       if (ppdiskbno) {
+		       uint32_t *indirect = (uint32_t *)diskaddr(f->f_indirect);
+		       *ppdiskbno = &(indirect[filebno - NDIRECT]);
+	       }
+       }
+
+       return 0;
 }
 
 // Set *blk to the address in memory where the filebno'th
@@ -150,7 +177,15 @@ int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
        // LAB 5: Your code here.
-       panic("file_get_block not implemented");
+       uint32_t *blockno;
+       file_block_walk(f, filebno, &blockno, 1);
+       if (*blockno == 0) {
+	       int new_block = alloc_block();
+	       *blockno = new_block;
+	       flush_block(diskaddr(new_block));
+       }
+       *blk = diskaddr(*blockno);
+       return 0;
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
@@ -453,4 +488,3 @@ fs_sync(void)
 	for (i = 1; i < super->s_nblocks; i++)
 		flush_block(diskaddr(i));
 }
-

@@ -364,17 +364,14 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	}
 
 	if ((uint32_t)srcva < UTOP) {
-		cprintf("here1\n");
 		// srcva < UTOP but srcva is not page-aligned.
 		if (((uint32_t)srcva % PGSIZE) != 0) {
 			return -E_INVAL;
 		}
-		cprintf("here2\n");
 		// srcva < UTOP and perm is inappropriate
 		if ((perm & (PTE_U | PTE_P)) != (PTE_U | PTE_P)) {
 			return -E_INVAL;
 		}
-		cprintf("here3\n");
 		if ((perm & ~(PTE_U | PTE_P | PTE_AVAIL | PTE_W)) != 0) {
 			return -E_INVAL;
 		}
