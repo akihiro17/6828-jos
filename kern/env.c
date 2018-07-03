@@ -195,7 +195,6 @@ env_setup_vm(struct Env *e)
           e->env_pgdir[i] = 0;
         }
 
-        cprintf("PDX(UTOP): %d\n", PDX(UTOP));
         for(i = PDX(UTOP); i < NPDENTRIES; i++) {
           e->env_pgdir[i] = kern_pgdir[i];
         }
@@ -264,6 +263,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
+	e->env_tf.tf_eflags |= FL_IF;
 
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
