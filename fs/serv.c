@@ -214,7 +214,23 @@ serve_read(envid_t envid, union Fsipc *ipc)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// Lab 5: Your code here:
-	return 0;
+
+	// First, use openfile_lookup to find the relevant open file.
+	// On failure, return the error code to the client with ipc_send.
+	struct OpenFile *o;
+	int r;
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+
+	// seek position
+	if ((r = file_read(o->o_file, ret->ret_buf, req->req_n, o->o_fd->fd_offset)) < 0) {
+		return r;
+	}
+
+	// update position
+	o->o_fd->fd_offset += r;
+
+	return r;
 }
 
 
@@ -229,7 +245,29 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+	struct OpenFile *o;
+	int r;
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+
+	int total = 0;
+	while (1) {
+		// seek position
+		if ((r = file_write(o->o_file, req->req_buf, req->req_n, o->o_fd->fd_offset)) < 0) {
+			return r;
+		}
+
+		// update position
+		o->o_fd->fd_offset += r;
+
+		total += r;
+
+		if (total >= req->req_n) {
+			break;
+		}
+	}
+
+	return total;
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
@@ -342,4 +380,3 @@ umain(int argc, char **argv)
         fs_test();
 	serve();
 }
-

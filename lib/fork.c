@@ -43,7 +43,7 @@ pgfault(struct UTrapframe *utf)
 		panic("sys_page_alloc failed");
 	}
 	memcpy(PFTEMP, ROUNDDOWN(addr, PGSIZE), PGSIZE);
-	r = sys_page_map(0, PFTEMP, 0, ROUNDDOWN(addr, PGSIZE), PTE_P | PTE_W | PTE_U);	
+	r = sys_page_map(0, PFTEMP, 0, ROUNDDOWN(addr, PGSIZE), PTE_P | PTE_W | PTE_U);
 	if (r < 0) {
 		panic("sys_page_map failed\n");
 	}
@@ -70,7 +70,12 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 	// LAB 4: Your code here.
 	void *va = (void *)(pn*PGSIZE);
-	if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) {
+	if ((uvpt[pn] & PTE_SHARE)) {
+		r = sys_page_map(0, va, envid, va, PTE_W | PTE_P | PTE_U | PTE_SHARE);
+		if (r < 0) {
+			panic("sys_page_map failed\n");
+		}
+	} else if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) {
 		r = sys_page_map(0, va, envid, va, PTE_COW | PTE_P | PTE_U);
 		if (r < 0) {
 			panic("sys_page_map failed\n");
@@ -79,7 +84,7 @@ duppage(envid_t envid, unsigned pn)
 		if (r < 0) {
 			panic("sys_page_map failed\n");
 		}
-	} else {
+	}  else {
 		r = sys_page_map(0, va, envid, va, PTE_U | PTE_P);
 		if (r < 0) {
 			panic("sys_page_map failed\n");
