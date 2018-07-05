@@ -71,21 +71,26 @@ duppage(envid_t envid, unsigned pn)
 	// LAB 4: Your code here.
 	void *va = (void *)(pn*PGSIZE);
 	if ((uvpt[pn] & PTE_SHARE)) {
-		r = sys_page_map(0, va, envid, va, PTE_W | PTE_P | PTE_U | PTE_SHARE);
+		// You should use PTE_SYSCALL, not 0xfff, to mask out the relevant bits from the page table entry
+		r = sys_page_map(0, va, envid, va, uvpt[pn] & PTE_SYSCALL);
 		if (r < 0) {
 			panic("sys_page_map failed\n");
 		}
 	} else if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) {
-		r = sys_page_map(0, va, envid, va, PTE_COW | PTE_P | PTE_U);
+		int perm = PTE_COW | PTE_P;
+		if (uvpt[pn] & PTE_U) {
+			perm |= PTE_U;
+		}
+		r = sys_page_map(0, va, envid, va, perm);
 		if (r < 0) {
 			panic("sys_page_map failed\n");
 		}
-		r = sys_page_map(0, va, 0, va, PTE_COW | PTE_P | PTE_U);
+		r = sys_page_map(0, va, 0, va, perm);
 		if (r < 0) {
 			panic("sys_page_map failed\n");
 		}
 	}  else {
-		r = sys_page_map(0, va, envid, va, PTE_U | PTE_P);
+		r = sys_page_map(0, va, envid, va, uvpt[pn] & PTE_SYSCALL);
 		if (r < 0) {
 			panic("sys_page_map failed\n");
 		}

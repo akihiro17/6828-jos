@@ -304,7 +304,7 @@ copy_shared_pages(envid_t child)
 	// LAB 5: Your code here.
 	for (uint32_t addr = 0 ; addr < UTOP - PGSIZE; addr += PGSIZE) {
 		if ((uvpd[PDX(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_U) && (uvpt[PGNUM(addr)] & PTE_SHARE)) {
-			if ((sys_page_map(0, (void *)addr, child, (void *)addr, PTE_W | PTE_P | PTE_U)) < 0) {
+			if ((sys_page_map(0, (void *)addr, child, (void *)addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0) {
 				panic("sys_page_map failed\n");
 			}
 		}
