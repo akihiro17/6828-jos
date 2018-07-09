@@ -12,6 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -454,6 +455,25 @@ sys_time_msec(void)
 	return time_msec();
 }
 
+static int
+sys_send_packet(char *text, uint16_t length) {
+	int num_tries = 20;
+	while((send_packet(text, length) == -1) && (num_tries > 0)) {
+		sys_yield();
+		num_tries--;
+	}
+	if (num_tries == 0) {
+		return -E_E1000_TXBUF_FULL;
+	}
+
+	return 0;
+}
+
+static int
+sys_receive_packet(char *text, uint16_t length) {
+	return 0;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -495,6 +515,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
 	case SYS_time_msec:
 		return sys_time_msec();
+	case SYS_send_packet:
+		return sys_send_packet((char *)a1, (uint16_t)a2);
+	case SYS_receive_packet:
+		return sys_receive_packet((char *)a1, (uint16_t)a2);
 	default:
 		return -E_INVAL;
 	}

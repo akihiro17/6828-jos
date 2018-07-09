@@ -2,9 +2,10 @@
 
 // LAB 6: Your driver code here
 
-// struct tx_desc txq[NTXDESC] __attribute__ ((aligned (16)));
-struct tx_desc txq[NTXDESC];
+struct tx_desc txq[NTXDESC] __attribute__ ((aligned (16)));
+struct rx_desc rxq[NTXDESC] __attribute__ ((aligned (16)));
 struct packet packets[NTXDESC];
+struct packet rx_packets[NRXDESC];
 
 volatile uint32_t *e1000_regs;
 
@@ -50,6 +51,42 @@ pci_vendor_attach(struct pci_func *f) {
 		txq[i].status |= 1;
 	}
 
+	// receive initialization
+	e1000_regs[E1000_RAL] = E1000_MAC_LOW;
+	e1000_regs[E1000_RAH] = E1000_MAC_HIGH;
+	e1000_regs[E1000_RAH] |= E1000_RAH_AV;
+
+	memset(rxq, 0, sizeof(struct rx_desc) * NRXDESC);
+
+	for (int i = 0; i < NELEM_MTA; i++) {
+		e1000_regs[E1000_MTA + i] = 0x00000000;
+	}
+
+	e1000_regs[E1000_RDBAL] = PADDR(rxq);
+	e1000_regs[E1000_RDBAH] = 0x0;
+
+	// Initialize the MTA (Multicast Table Array) to 0b
+	e1000_regs[E1000_MTA] = 0x0;
+
+	e1000_regs[E1000_RDLEN] = NRXDESC * sizeof(struct rx_desc);
+
+	e1000_regs[E1000_RDH] = 0x0;
+	e1000_regs[E1000_RDT] =	NRXDESC - 1;
+
+	for (int i = 0; i < NRXDESC; i++) {
+		rxq[i].buffer_addr = PADDR(&rx_packets[i]);
+	}
+
+	// Set the receiver Enable (RCTL.EN) bit to 1b
+	e1000_regs[E1000_RCTL] |= E1000_RCTL_EN;
+	// Set the Long Packet Enable (RCTL.LPE) bit
+	// disable
+	e1000_regs[E1000_RCTL] &= ~(E1000_RCTL_LPE);
+	// Loopback Mode (RCTL.LBM) should be set to 00b
+	e1000_regs[E1000_RCTL] &= E1000_RCTL_LBM_NO;
+	e1000_regs[E1000_RCTL] &= E1000_RCTL_BSIZE_2048;
+	e1000_regs[E1000_RCTL] |= E1000_RCTL_SECRC;
+
 	return 0;
 }
 
@@ -61,18 +98,28 @@ int send_packet(char *text, uint16_t length) {
 	}
 
 	if (txq[tail].status & 0x1) {
-		memmove((void *)&txq[tail].addr, text, length);
+		memmove((void *)&packets[tail], (void *)text, length);
 		txq[tail].length = length;
 
 		// EOP
-		txq[tail].cmd |= 1 << 1;
+		txq[tail].cmd |= 1;
+		// RPS
+		// It is used is cases where the software must know that
+		// the packet has been sent, and not just loaded to the transmit FIFO
+		txq[tail].cmd |= 1 << 4;
 
 		// reset DD bit
 		txq[tail].status &= ~(0x1);
+
 		e1000_regs[E1000_TDT] = (tail + 1) % NTXDESC;
 
 		return 0;
 	} else {
 		return -1;
 	}
+}
+
+int
+receive_packet(char *text, uint16_t length) {
+	return 0;
 }
